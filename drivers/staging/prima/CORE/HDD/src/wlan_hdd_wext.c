@@ -1214,7 +1214,7 @@ void hdd_clearRoamProfileIe( hdd_adapter_t *pAdapter)
    pWextState->roamProfile.bWPSAssociation = VOS_FALSE;
    pWextState->roamProfile.bOSENAssociation = VOS_FALSE;
    pWextState->roamProfile.nAddIEScanLength = 0;
-   memset(pWextState->roamProfile.addIEScan, 0 , SIR_MAC_MAX_ADD_IE_LENGTH+2);
+   memset(pWextState->roamProfile.addIEScan, 0 , SIR_MAC_MAX_IE_LENGTH+2);
    pWextState->roamProfile.pAddIEAssoc = (tANI_U8 *)NULL;
    pWextState->roamProfile.nAddIEAssocLength = 0;
 
@@ -7514,7 +7514,7 @@ VOS_STATUS iw_set_pno(struct net_device *dev, struct iw_request_info *info,
      overflow.  This API is only invoked via ioctl, so it is
      serialized by the kernel rtnl_lock and hence does not need to be
      reentrant */
-  tSirPNOScanReq pnoRequest = {0};
+  static tSirPNOScanReq pnoRequest;
   char *ptr;
   v_U8_t i,j, ucParams, ucMode;
   eHalStatus status = eHAL_STATUS_FAILURE;
@@ -7621,18 +7621,6 @@ VOS_STATUS iw_set_pno(struct net_device *dev, struct iw_request_info *info,
   }
 
   ptr += nOffset;
-
-  pnoRequest.aNetworks =
-           vos_mem_malloc(sizeof(tSirNetworkType)*pnoRequest.ucNetworksCount);
-  if (pnoRequest.aNetworks == NULL)
-  {
-       VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
-           FL("failed to allocate memory aNetworks %u"),
-               (uint32)sizeof(tSirNetworkType)*pnoRequest.ucNetworksCount);
-       goto error;
-  }
-  vos_mem_zero(pnoRequest.aNetworks,
-               sizeof(tSirNetworkType)*pnoRequest.ucNetworksCount);
 
   for ( i = 0; i < pnoRequest.ucNetworksCount; i++ )
   {
@@ -7820,24 +7808,6 @@ VOS_STATUS iw_set_pno(struct net_device *dev, struct iw_request_info *info,
   {
      pnoRequest.modePNO = SIR_PNO_MODE_ON_SUSPEND;
   }
-  pnoRequest.p24GProbeTemplate = vos_mem_malloc(SIR_PNO_MAX_PB_REQ_SIZE);
-  if (pnoRequest.p24GProbeTemplate == NULL){
-      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
-          FL("failed to allocate memory p24GProbeTemplate %u"),
-              SIR_PNO_MAX_PB_REQ_SIZE);
-      goto error;
-  }
-
-  pnoRequest.p5GProbeTemplate = vos_mem_malloc(SIR_PNO_MAX_PB_REQ_SIZE);
-  if (pnoRequest.p5GProbeTemplate == NULL){
-      VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
-          FL("failed to allocate memory p5GProbeTemplate %u"),
-              SIR_PNO_MAX_PB_REQ_SIZE);
-      goto error;
-  }
-
-  vos_mem_zero(pnoRequest.p24GProbeTemplate, SIR_PNO_MAX_PB_REQ_SIZE);
-  vos_mem_zero(pnoRequest.p5GProbeTemplate, SIR_PNO_MAX_PB_REQ_SIZE);
 
   status = sme_SetPreferredNetworkList(WLAN_HDD_GET_HAL_CTX(pAdapter), &pnoRequest,
                                 pAdapter->sessionId,
@@ -7852,12 +7822,6 @@ error:
     VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                 "%s: Failed to enable PNO", __func__);
     pHddCtx->isPnoEnable = FALSE;
-    if (pnoRequest.aNetworks)
-        vos_mem_free(pnoRequest.aNetworks);
-    if (pnoRequest.p24GProbeTemplate)
-        vos_mem_free(pnoRequest.p24GProbeTemplate);
-    if (pnoRequest.p5GProbeTemplate)
-        vos_mem_free(pnoRequest.p5GProbeTemplate);
     return VOS_STATUS_E_FAILURE;
 }/*iw_set_pno*/
 

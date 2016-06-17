@@ -3766,12 +3766,6 @@ VOS_STATUS csrNeighborRoamTransitToCFGChanScan(tpAniSirGlobal pMac)
                           numOfChannels * sizeof(tANI_U8));
                 outputNumOfChannels = numOfChannels;
             }
-
-            if (outputNumOfChannels == 0)
-            {
-                smsLog(pMac, LOGE, FL("No channels to scan"));
-                return VOS_STATUS_E_FAILURE;
-            }
             currChannelListInfo->ChannelList =
                 vos_mem_malloc(outputNumOfChannels*sizeof(tANI_U8));
             if (NULL == currChannelListInfo->ChannelList)
@@ -3779,7 +3773,6 @@ VOS_STATUS csrNeighborRoamTransitToCFGChanScan(tpAniSirGlobal pMac)
                 smsLog(pMac, LOGE, FL("Memory allocation for Channel list failed"));
                 return VOS_STATUS_E_RESOURCES;
             }
-            currChannelListInfo->numOfChannels = outputNumOfChannels;
             vos_mem_copy(currChannelListInfo->ChannelList,
                   scanChannelList, outputNumOfChannels * sizeof(tANI_U8));
         } 
@@ -3895,18 +3888,12 @@ VOS_STATUS csrNeighborRoamTransitToCFGChanScan(tpAniSirGlobal pMac)
                     outputNumOfChannels = numOfChannels;
                 }
 
-                if (outputNumOfChannels == 0)
-                {
-                    smsLog(pMac, LOGE, FL("No channels to scan"));
-                    return VOS_STATUS_E_FAILURE;
-                }
                 currChannelListInfo->ChannelList = vos_mem_malloc(outputNumOfChannels * sizeof(tANI_U8));
                 if (NULL == currChannelListInfo->ChannelList)
                 {
                     smsLog(pMac, LOGE, FL("Memory allocation for Channel list failed"));
                     return VOS_STATUS_E_RESOURCES;
                 }
-                currChannelListInfo->numOfChannels = outputNumOfChannels;
                 vos_mem_copy(currChannelListInfo->ChannelList,
                         scanChannelList,
                         outputNumOfChannels * sizeof(tANI_U8));
@@ -3965,12 +3952,6 @@ VOS_STATUS csrNeighborRoamTransitToCFGChanScan(tpAniSirGlobal pMac)
             {
                 numOfChannels = WNI_CFG_VALID_CHANNEL_LIST_LEN;
             }
-
-            if (numOfChannels == 0)
-            {
-                smsLog(pMac, LOGE, FL("No channels to scan"));
-                return VOS_STATUS_E_FAILURE;
-            }
             currChannelListInfo->ChannelList =
                 vos_mem_malloc(numOfChannels*sizeof(tANI_U8));
 
@@ -3979,7 +3960,6 @@ VOS_STATUS csrNeighborRoamTransitToCFGChanScan(tpAniSirGlobal pMac)
                 smsLog(pMac, LOGE, FL("Memory allocation for Channel list failed"));
                 return VOS_STATUS_E_RESOURCES;
             }
-            currChannelListInfo->numOfChannels = numOfChannels;
 #ifdef FEATURE_WLAN_LFR
             vos_mem_copy(currChannelListInfo->ChannelList,
                     channelList, numOfChannels * sizeof(tANI_U8));
@@ -3991,6 +3971,8 @@ VOS_STATUS csrNeighborRoamTransitToCFGChanScan(tpAniSirGlobal pMac)
             }
         }
 
+        /* Adjust for the actual number that are used */
+        currChannelListInfo->numOfChannels = numOfChannels;
         NEIGHBOR_ROAM_DEBUG(pMac, LOGW, 
             "Number of channels from CFG (or) (non-)occupied list=%d",
             currChannelListInfo->numOfChannels);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -58,7 +58,7 @@
 #else
 #include <mach/subsystem_restart.h>
 #endif
-#include  "wlan_hdd_trace.h"
+
 
 /*--------------------------------------------------------------------------- 
   Preprocessor definitions and constants
@@ -392,8 +392,6 @@ int hdd_softap_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
        pAdapter->aStaInfo[STAId].txSuspended[ac] = VOS_TRUE;
        netif_stop_subqueue(dev, skb_get_queue_mapping(skb));
        txSuspended = VOS_TRUE;
-       MTRACE(vos_trace(VOS_MODULE_ID_HDD, TRACE_CODE_HDD_STOP_NETDEV,
-                        pAdapter->sessionId, ac));
     }
 
     /* If 3/4th of the max queue size is used then enable the flag.
@@ -1010,10 +1008,10 @@ VOS_STATUS hdd_softap_tx_complete_cbk( v_VOID_t *vosContext,
 
    //Get the Adapter context.
    pAdapter = (hdd_adapter_t *)netdev_priv(((struct sk_buff *)pOsPkt)->dev);
-   if((pAdapter == NULL) || (WLAN_HDD_ADAPTER_MAGIC != pAdapter->magic))
+   if(pAdapter == NULL)
    {
       VOS_TRACE( VOS_MODULE_ID_HDD_SAP_DATA, VOS_TRACE_LEVEL_ERROR,
-                 "%s: HDD adapter context is invalid", __func__);
+                 "%s: HDD adapter context is Null", __func__);
    }
    else
    {
@@ -1272,7 +1270,6 @@ VOS_STATUS hdd_softap_tx_fetch_packet_cbk( v_VOID_t *vosContext,
    }
 //xg: @@@@: temporarily disble these. will revisit later
    {
-      pPktMetaInfo->ac = ac;
       pPktMetaInfo->ucUP = pktNode->userPriority;
       pPktMetaInfo->ucTID = pPktMetaInfo->ucUP;
    }
@@ -1294,8 +1291,6 @@ VOS_STATUS hdd_softap_tx_fetch_packet_cbk( v_VOID_t *vosContext,
                  "%s: TX queue re-enabled", __func__);
       pAdapter->aStaInfo[STAId].txSuspended[ac] = VOS_FALSE;
       netif_wake_subqueue(pAdapter->dev, skb_get_queue_mapping(skb));
-      MTRACE(vos_trace(VOS_MODULE_ID_HDD, TRACE_CODE_HDD_WAKE_NETDEV,
-                       pAdapter->sessionId, ac));
    }    
 
    // We're giving the packet to TL so consider it transmitted from

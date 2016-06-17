@@ -332,17 +332,16 @@ void wpalWcnssResetIntr(void);
     wpalFwDumpReq -  Trigger the dump commands to Firmware
 
     Param:
-       cmd -   Command No. to execute
-       arg1 -  argument 1 to cmd
-       arg2 -  argument 2 to cmd
-       arg3 -  argument 3 to cmd
-       arg4 -  argument 4 to cmd
-       async -asynchronous event. Don't wait for completion.
+       cmd - Command No. to execute
+       arg1 - argument 1 to cmd
+       arg2 - argument 2 to cmd
+       arg3 - argument 3 to cmd
+       arg4 - argument 4 to cmd
     Return:
        NONE
 ---------------------------------------------------------------------------*/
 void wpalFwDumpReq(wpt_uint32 cmd, wpt_uint32 arg1, wpt_uint32 arg2,
-                    wpt_uint32 arg3, wpt_uint32 arg4, wpt_boolean async);
+                    wpt_uint32 arg3, wpt_uint32 arg4);
 
 /*---------------------------------------------------------------------------
     wpalDevicePanic -  Trigger Device Panic

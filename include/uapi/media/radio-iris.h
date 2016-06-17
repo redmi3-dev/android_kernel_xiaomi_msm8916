@@ -33,7 +33,6 @@
 #include <linux/atomic.h>
 #include <media/radio-iris-commands.h>
 
-<<<<<<< HEAD
 #define MIN_TX_TONE_VAL  0x00
 #define MAX_TX_TONE_VAL  0x07
 #define MIN_HARD_MUTE_VAL  0x00

@@ -6887,11 +6887,6 @@ VOS_STATUS hdd_stop_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter,
          if( hdd_connIsConnected(pstation) ||
              (pstation->conn_info.connState == eConnectionState_Connecting) )
          {
-#ifdef FEATURE_WLAN_TDLS
-              mutex_lock(&pHddCtx->tdls_lock);
-              wlan_hdd_tdls_exit(pAdapter, TRUE);
-              mutex_unlock(&pHddCtx->tdls_lock);
-#endif
             if (pWextState->roamProfile.BSSType == eCSR_BSS_TYPE_START_IBSS)
                 halStatus = sme_RoamDisconnect(pHddCtx->hHal,
                                              pAdapter->sessionId,
@@ -7191,11 +7186,6 @@ VOS_STATUS hdd_reset_all_adapters( hdd_context_t *pHddCtx )
       }
 #endif
 
-#ifdef FEATURE_WLAN_TDLS
-      mutex_lock(&pHddCtx->tdls_lock);
-      wlan_hdd_tdls_exit(pAdapter, TRUE);
-      mutex_unlock(&pHddCtx->tdls_lock);
-#endif
       status = hdd_get_next_adapter ( pHddCtx, pAdapterNode, &pNext );
       pAdapterNode = pNext;
    }
@@ -7974,19 +7964,6 @@ void hdd_wlan_exit(hdd_context_t *pHddCtx)
    else
    {
       hddLog(VOS_TRACE_LEVEL_INFO,"%s: FTM MODE",__func__);
-      if (pHddCtx->ftm.ftm_state == WLAN_FTM_STARTING)
-      {
-         INIT_COMPLETION(pHddCtx->ftm.startCmpVar);
-         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-              "%s: in middle of FTM START", __func__);
-         lrc = wait_for_completion_timeout(&pHddCtx->ftm.startCmpVar,
-                                          msecs_to_jiffies(20000));
-         if(!lrc)
-         {
-              VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
-              "%s: timedout on ftmStartCmpVar fatal error", __func__);
-         }
-      }
       wlan_hdd_ftm_close(pHddCtx);
       goto free_hdd_ctx;
    }
@@ -8186,117 +8163,6 @@ free_hdd_ctx:
    hdd_set_ssr_required (VOS_FALSE);
 }
 
-/* wangxun */
-static VOS_STATUS hdd_update_wifi_mac(hdd_context_t* pHddCtx)
-{
-	struct file *fp      = NULL;
-	char* filepath       = "/persist/softmac";
-	char macbuf[20]      ={0};
-	int ret              = 0;
-	mm_segment_t oldfs   = {0};
-	char random_mac[20]  = {0};
-	unsigned int softmac[6];
-
-	// first output random wifi mac address.
-	random_mac[0] = 0x00; /* locally administered */
-	random_mac[1] = 0x23;
-	random_mac[2] = 0xB1;
-	random_mac[3] = 0x11;//random32() & 0xff;
-	random_mac[4] = 0x22;//random32() & 0xff;
-	random_mac[5] = 0x33;//random32() & 0xff;
-		
-	fp = filp_open(filepath, O_RDWR, 0666);
-	if(IS_ERR(fp)) {
-		printk("[WIFI] %s: File open error\n", filepath);
-		return VOS_STATUS_E_FAILURE;
-	}
-	
-	oldfs = get_fs();
-	set_fs(get_ds());    
-
-	if(fp->f_mode & FMODE_READ) {
-		ret = fp->f_op->read(fp, (char *)macbuf, 17, &fp->f_pos);
-		if(ret < 0)
-			printk("[WIFI] Mac address [%s] Failed to read from File: %s\n", macbuf, filepath);
-		else
-			printk("[WIFI] Mac address [%s] read from File: %s\n", macbuf, filepath);
-	}
-	
-	set_fs(oldfs);
-
-	if (fp)
-	    filp_close(fp, NULL);
-		
-	if (sscanf(macbuf, "%02x:%02x:%02x:%02x:%02x:%02x",
-								&softmac[0], &softmac[1], &softmac[2],
-								&softmac[3], &softmac[4], &softmac[5])==6) 
-	{
-		if (memcmp(macbuf, "00:00:00:00:00:00", 17) != 0){
-			int i;
-			for (i = 0; i < 6; i++)
-			{
-			   pHddCtx->cfg_ini->intfMacAddr[0].bytes[i]= softmac[i] & 0xff;
-			}
-	        printk("wifi mac is =%02X:%02X:%02X:%02X:%02X:%02X\n",
-	            pHddCtx->cfg_ini->intfMacAddr[0].bytes[0], 
-	            pHddCtx->cfg_ini->intfMacAddr[0].bytes[1],
-	            pHddCtx->cfg_ini->intfMacAddr[0].bytes[2], 
-	            pHddCtx->cfg_ini->intfMacAddr[0].bytes[3], 
-	            pHddCtx->cfg_ini->intfMacAddr[0].bytes[4], 
-	            pHddCtx->cfg_ini->intfMacAddr[0].bytes[5]);
-		}else{		 
-			struct file *fp      = NULL;
-			char mac_in[20]      ={0};
-			int ret              = 0;
-			mm_segment_t oldfs   = {0};
-			printk("wxun: has softmac file but mac address is invalid(00:00:00:00:00:00), so write random mac address to softmac file.\n");
-			fp = filp_open(filepath, O_RDWR | O_CREAT, 0666);
-	    	if(IS_ERR(fp)) {
-	    		printk("[WIFI] %s: File open error\n", filepath);
-	    		return VOS_STATUS_E_FAILURE;
-	    	}
-	    	
-			oldfs = get_fs();
-			set_fs(get_ds());
-	        
-	        printk("random_mac is =%02X:%02X:%02X:%02X:%02X:%02X\n",
-	            random_mac[0], random_mac[1],random_mac[2], random_mac[3], random_mac[4], random_mac[5]);
-
-	    	if(fp->f_mode & FMODE_WRITE) {			
-			sprintf(mac_in,"%02x:%02x:%02x:%02x:%02x:%02x",
-	                     random_mac[0], random_mac[1], random_mac[2],
-	                     random_mac[3], random_mac[4], random_mac[5]);
-	    		ret = fp->f_op->write(fp, (const char *)mac_in, 17, &fp->f_pos);
-	    		if(ret < 0)
-	    			printk("[WIFI] Mac address [%s] Failed to write into File: %s\n", mac_in, filepath);
-	    		else
-	    			printk("[WIFI] Mac address [%s] written into File: %s\n", mac_in, filepath);
-	    	}
-	    	
-			set_fs(oldfs);
-
-			if (fp)
-			    filp_close(fp, NULL);
-
-			if (sscanf(mac_in, "%02x:%02x:%02x:%02x:%02x:%02x",
-								&softmac[0], &softmac[1], &softmac[2],
-								&softmac[3], &softmac[4], &softmac[5])==6) 
-			{
-				int i;
-				for (i = 0; i < 6; i++)
-				{
-				   pHddCtx->cfg_ini->intfMacAddr[0].bytes[i]= softmac[i] & 0xff;
-				}				
-			}
-				
-	    }
-	}
-
-	return VOS_STATUS_SUCCESS;
-	
-}
-
-/* end */
 
 /**---------------------------------------------------------------------------
 
@@ -8761,9 +8627,7 @@ int hdd_wlan_startup(struct device *dev )
 #endif
    int ret;
    struct wiphy *wiphy;
-   #if 0
    v_MACADDR_t mac_addr;
-   #endif//don't use qualcomm mac address.
 
    ENTER();
    /*
@@ -9052,7 +8916,6 @@ int hdd_wlan_startup(struct device *dev )
       goto err_vosclose;
    }
 
-#if 0//remove by wangxun
    // Get mac addr from platform driver
    ret = wcnss_get_wlan_mac_address((char*)&mac_addr.bytes);
 
@@ -9077,9 +8940,7 @@ int hdd_wlan_startup(struct device *dev )
                 "using MAC from ini file ", __func__);
       }
    }
-   else 
-#endif
-if (VOS_STATUS_SUCCESS != hdd_update_wifi_mac(pHddCtx))
+   else if (VOS_STATUS_SUCCESS != hdd_update_config_from_nv(pHddCtx))
    {
       // Apply the NV to cfg.dat
       /* Prima Update MAC address only at here */
@@ -9498,10 +9359,6 @@ if (VOS_STATUS_SUCCESS != hdd_update_wifi_mac(pHddCtx))
 #endif
    /* Send the update default channel list to the FW*/
    sme_UpdateChannelList(pHddCtx->hHal);
-
-   /* Fwr capabilities received, Set the Dot11 mode */
-   sme_SetDefDot11Mode(pHddCtx->hHal);
-
 #ifndef CONFIG_ENABLE_LINUX_REG
    /*updating wiphy so that regulatory user hints can be processed*/
    if (wiphy)
@@ -9830,8 +9687,10 @@ static void hdd_driver_exit(void)
 {
    hdd_context_t *pHddCtx = NULL;
    v_CONTEXT_t pVosContext = NULL;
+   pVosWatchdogContext pVosWDCtx = NULL;
    v_REGDOMAIN_t regId;
    unsigned long rc = 0;
+   unsigned long flags;
 
    pr_info("%s: unloading driver v%s\n", WLAN_MODULE_NAME, QWLAN_VERSIONSTR);
 
@@ -9853,19 +9712,34 @@ static void hdd_driver_exit(void)
    }
    else
    {
-      /* We wait for active entry threads to exit from driver
-       * by waiting until rtnl_lock is available.
-       */
+      pVosWDCtx = get_vos_watchdog_ctxt();
+      if(pVosWDCtx == NULL)
+      {
+         hddLog(VOS_TRACE_LEVEL_ERROR, FL("WD context is invalid"));
+         goto done;
+      }
       rtnl_lock();
       hdd_nullify_netdev_ops(pHddCtx);
       rtnl_unlock();
-
-      INIT_COMPLETION(pHddCtx->ssr_comp_var);
-      if ((pHddCtx->isLogpInProgress) && (FALSE ==
-                  vos_is_wlan_in_badState(VOS_MODULE_ID_HDD, NULL)))
+      spin_lock_irqsave(&pVosWDCtx->wdLock, flags);
+      if (!pHddCtx->isLogpInProgress || (TRUE ==
+               vos_is_wlan_in_badState(VOS_MODULE_ID_HDD, NULL)))
       {
+         //SSR isn't in progress OR last wlan reinit wasn't successful
+         pHddCtx->isLoadUnloadInProgress = WLAN_HDD_UNLOAD_IN_PROGRESS;
+         vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, TRUE);
+         spin_unlock_irqrestore(&pVosWDCtx->wdLock, flags);
+      }
+      else
+      {
+         INIT_COMPLETION(pHddCtx->ssr_comp_var);
+
+         pHddCtx->isLoadUnloadInProgress = WLAN_HDD_UNLOAD_IN_PROGRESS;
+         vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, TRUE);
+         spin_unlock_irqrestore(&pVosWDCtx->wdLock, flags);
+
          VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-              "%s:SSR  in Progress; block rmmod !!!", __func__);
+              "%s:SSR is in Progress; block rmmod !!!", __func__);
          rc = wait_for_completion_timeout(&pHddCtx->ssr_comp_var,
                                           msecs_to_jiffies(30000));
          if(!rc)
@@ -9876,8 +9750,11 @@ static void hdd_driver_exit(void)
          }
       }
 
-      pHddCtx->isLoadUnloadInProgress = WLAN_HDD_UNLOAD_IN_PROGRESS;
-      vos_set_load_unload_in_progress(VOS_MODULE_ID_VOSS, TRUE);
+      /* We wait for active entry threads to exit from driver
+       * by waiting until rtnl_lock is available.
+       */
+      rtnl_lock();
+      rtnl_unlock();
 
        /* Driver Need to send country code 00 in below condition
         * 1) If gCountryCodePriority is set to 1; and last country
@@ -10275,24 +10152,10 @@ v_BOOL_t hdd_is_apps_power_collapse_allowed(hdd_context_t* pHddCtx)
         {
             if (((pConfig->fIsImpsEnabled || pConfig->fIsBmpsEnabled)
                  && (pmcState != IMPS && pmcState != BMPS && pmcState != UAPSD
-                  &&  pmcState != STOPPED && pmcState != STANDBY &&
-                      pmcState != WOWL)) ||
+                  &&  pmcState != STOPPED && pmcState != STANDBY)) ||
                  (eANI_BOOLEAN_TRUE == scanRspPending) ||
                  (eANI_BOOLEAN_TRUE == inMiddleOfRoaming))
             {
-                if(pmcState == FULL_POWER &&
-                   sme_IsCoexScoIndicationSet(pHddCtx->hHal))
-                {
-                    /*
-                     * When SCO indication comes from Coex module , host will
-                     * enter in to full power mode, but this should not prevent
-                     * apps processor power collapse.
-                     */
-                    hddLog(LOG1,
-                       FL("Allow apps power collapse"
-                          "even when sco indication is set"));
-                    return TRUE;
-                }
                 hddLog( LOGE, "%s: do not allow APPS power collapse-"
                     "pmcState = %d scanRspPending = %d inMiddleOfRoaming = %d",
                     __func__, pmcState, scanRspPending, inMiddleOfRoaming );
@@ -10670,53 +10533,28 @@ VOS_STATUS hdd_issta_p2p_clientconnected(hdd_context_t *pHddCtx)
     return sme_isSta_p2p_clientConnected(pHddCtx->hHal);
 }
 
-/*
- * API to find if there is any session connected
- */
-VOS_STATUS hdd_is_any_session_connected(hdd_context_t *pHddCtx)
-{
-    return sme_is_any_session_connected(pHddCtx->hHal);
-}
-
-
 int wlan_hdd_scan_abort(hdd_adapter_t *pAdapter)
 {
     hdd_context_t *pHddCtx = WLAN_HDD_GET_CTX(pAdapter);
     hdd_scaninfo_t *pScanInfo = NULL;
     long status = 0;
-    tSirAbortScanStatus abortScanStatus;
 
     pScanInfo = &pHddCtx->scan_info;
     if (pScanInfo->mScanPending)
     {
-        abortScanStatus = hdd_abort_mac_scan(pHddCtx, pScanInfo->sessionId,
-                                             eCSR_SCAN_ABORT_DEFAULT);
-        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                  FL("abortScanStatus: %d"), abortScanStatus);
+        INIT_COMPLETION(pScanInfo->abortscan_event_var);
+        hdd_abort_mac_scan(pHddCtx, pScanInfo->sessionId,
+                                    eCSR_SCAN_ABORT_DEFAULT);
 
-        /* If there is active scan command lets wait for the completion else
-         * there is no need to wait as scan command might be in the SME pending
-         * command list.
-         */
-        if (abortScanStatus == eSIR_ABORT_ACTIVE_SCAN_LIST_NOT_EMPTY)
-        {
-            INIT_COMPLETION(pScanInfo->abortscan_event_var);
-            status = wait_for_completion_interruptible_timeout(
+        status = wait_for_completion_interruptible_timeout(
                            &pScanInfo->abortscan_event_var,
                            msecs_to_jiffies(5000));
-            if (0 >= status)
-            {
-               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+        if (0 >= status)
+        {
+           VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
                   "%s: Timeout or Interrupt occurred while waiting for abort"
                   "scan, status- %ld", __func__, status);
-                return -ETIMEDOUT;
-            }
-        }
-        else if (abortScanStatus == eSIR_ABORT_SCAN_FAILURE)
-        {
-            VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                      FL("hdd_abort_mac_scan failed"));
-            return -VOS_STATUS_E_FAILURE;
+            return -ETIMEDOUT;
         }
     }
     return 0;

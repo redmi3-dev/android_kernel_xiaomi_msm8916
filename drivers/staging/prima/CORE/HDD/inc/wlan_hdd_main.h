@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -72,11 +72,8 @@
 /** Number of attempts to detect/remove card */
 #define LIBRA_CARD_INSERT_DETECT_MAX_COUNT      5
 #define LIBRA_CARD_REMOVE_DETECT_MAX_COUNT      5
-
-/** Number of Tx Queues. This should be same as the one
- *  used in TL WLANTL_NUM_TX_QUEUES */
-#define NUM_TX_QUEUES 5
-
+/** Number of Tx Queues */  
+#define NUM_TX_QUEUES 4
 /** HDD's internal Tx Queue Length. Needs to be a power of 2 */
 #define HDD_TX_QUEUE_MAX_LEN 128
 /** HDD internal Tx Queue Low Watermark. Net Device TX queue is disabled
@@ -212,7 +209,7 @@
 #define HDD_PNO_SCAN_TIMERS_SET_ONE      1
 /* value should not be greater than PNO_MAX_SCAN_TIMERS */
 #define HDD_PNO_SCAN_TIMERS_SET_MULTIPLE 6
-#define WLAN_WAIT_TIME_PNO  2000
+#define WLAN_WAIT_TIME_PNO  500
 #endif
 
 #define MAX_USER_COMMAND_SIZE 4096
@@ -1414,9 +1411,8 @@ void wlan_hdd_enable_deepsleep(v_VOID_t * pVosContext);
 v_BOOL_t wlan_hdd_is_GO_power_collapse_allowed(hdd_context_t* pHddCtx);
 v_BOOL_t hdd_is_apps_power_collapse_allowed(hdd_context_t* pHddCtx);
 v_BOOL_t hdd_is_suspend_notify_allowed(hdd_context_t* pHddCtx);
-tSirAbortScanStatus hdd_abort_mac_scan(hdd_context_t* pHddCtx,
-                                       tANI_U8 sessionId,
-                                       eCsrAbortReason reason);
+void hdd_abort_mac_scan(hdd_context_t* pHddCtx, tANI_U8 sessionId,
+                        eCsrAbortReason reason);
 void wlan_hdd_set_monitor_tx_adapter( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter );
 void hdd_cleanup_actionframe( hdd_context_t *pHddCtx, hdd_adapter_t *pAdapter );
 
@@ -1447,7 +1443,6 @@ void hdd_reset_pwrparams(hdd_context_t *pHddCtx);
 int wlan_hdd_validate_context(hdd_context_t *pHddCtx);
 v_BOOL_t hdd_is_valid_mac_address(const tANI_U8* pMacAddr);
 VOS_STATUS hdd_issta_p2p_clientconnected(hdd_context_t *pHddCtx);
-VOS_STATUS hdd_is_any_session_connected(hdd_context_t *pHddCtx);
 void hdd_ipv4_notifier_work_queue(struct work_struct *work);
 v_BOOL_t hdd_isConnectionInProgress( hdd_context_t *pHddCtx);
 #ifdef WLAN_FEATURE_PACKET_FILTERING

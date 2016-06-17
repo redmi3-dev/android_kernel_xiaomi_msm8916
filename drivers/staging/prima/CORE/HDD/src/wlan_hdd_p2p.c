@@ -291,7 +291,6 @@ VOS_STATUS wlan_hdd_cancel_existing_remain_on_channel(hdd_adapter_t *pAdapter)
          */
         if (pRemainChanCtx->hdd_remain_on_chan_cancel_in_progress != TRUE)
         {
-            mutex_unlock(&pHddCtx->roc_lock);
             status = wait_for_completion_interruptible_timeout(
                                         &pAdapter->rem_on_chan_ready_event,
                                         msecs_to_jiffies(WAIT_REM_CHAN_READY));
@@ -302,11 +301,11 @@ VOS_STATUS wlan_hdd_cancel_existing_remain_on_channel(hdd_adapter_t *pAdapter)
                        " ready indication %d",
                         __func__, status);
                 pRemainChanCtx->is_pending_roc_cancelled = TRUE;
+                mutex_unlock(&pHddCtx->roc_lock);
                 return VOS_STATUS_E_FAILURE;
             }
 
             INIT_COMPLETION(pAdapter->cancel_rem_on_chan_var);
-            mutex_lock(&pHddCtx->roc_lock);
             pRemainChanCtx->hdd_remain_on_chan_cancel_in_progress = TRUE;
             mutex_unlock(&pHddCtx->roc_lock);
 
@@ -841,7 +840,6 @@ int __wlan_hdd_cfg80211_cancel_remain_on_channel( struct wiphy *wiphy,
     }
     if (TRUE != pRemainChanCtx->is_pending_roc_cancelled)
     {
-       mutex_unlock(&pHddCtx->roc_lock);
        /* wait until remain on channel ready event received
         * for already issued remain on channel request */
        status = wait_for_completion_interruptible_timeout(&pAdapter->rem_on_chan_ready_event,
@@ -852,10 +850,10 @@ int __wlan_hdd_cfg80211_cancel_remain_on_channel( struct wiphy *wiphy,
                    "%s: timeout waiting for remain on channel ready indication %d",
                    __func__, status);
            pRemainChanCtx->is_pending_roc_cancelled = TRUE;
+           mutex_unlock(&pHddCtx->roc_lock);
            return 0;
 
        }
-        mutex_lock(&pHddCtx->roc_lock);
     }
     else
     {
@@ -869,7 +867,6 @@ int __wlan_hdd_cfg80211_cancel_remain_on_channel( struct wiphy *wiphy,
         vos_timer_stop(&cfgState->remain_on_chan_ctx->hdd_remain_on_chan_timer);
         if (TRUE == pRemainChanCtx->hdd_remain_on_chan_cancel_in_progress)
         {
-            mutex_unlock(&pHddCtx->roc_lock);
             hddLog( LOG1,
                     FL("ROC timer cancellation in progress,"
                        " wait for completion"));
@@ -882,6 +879,7 @@ int __wlan_hdd_cfg80211_cancel_remain_on_channel( struct wiphy *wiphy,
                         "%s:wait on cancel_rem_on_chan_var failed %d",
                         __func__, status);
             }
+            mutex_unlock(&pHddCtx->roc_lock);
             return 0;
         }
         else
@@ -1055,15 +1053,13 @@ int __wlan_hdd_mgmt_tx( struct wiphy *wiphy, struct net_device *dev,
     //then set the wait to 200 ms
     if (offchan && !wait)
     {
-        wait = ACTION_FRAME_DEFAULT_WAIT;
-        if (pRemainChanCtx)
-        {
-            tANI_U32 current_time = vos_timer_get_system_time();
-            int remaining_roc_time = ((int) pRemainChanCtx->duration -
-                    (current_time - pAdapter->startRocTs));
-            if ( remaining_roc_time > ACTION_FRAME_DEFAULT_WAIT)
-                wait = remaining_roc_time;
-        }
+        tANI_U32 current_time = vos_timer_get_system_time();
+        int remaining_roc_time = ((int) cfgState->remain_on_chan_ctx->duration -
+                                 (current_time - pAdapter->startRocTs));
+        if ( remaining_roc_time > ACTION_FRAME_DEFAULT_WAIT)
+            wait = remaining_roc_time;
+        else
+            wait = ACTION_FRAME_DEFAULT_WAIT;
     }
 
     //Call sme API to send out a action frame.

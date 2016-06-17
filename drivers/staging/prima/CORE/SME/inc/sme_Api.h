@@ -2272,11 +2272,12 @@ tANI_U8 sme_GetConcurrentOperationChannel( tHalHandle hHal );
     \brief  API to cancel MAC scan.
     \param  hHal - The handle returned by macOpen.
     \param  sessionId - sessionId for interface
-    \return tSirAbortScanStatus return status abort scan
-
+    \return VOS_STATUS
+            VOS_STATUS_E_FAILURE - failure
+            VOS_STATUS_SUCCESS  success
   ---------------------------------------------------------------------------*/
-tSirAbortScanStatus sme_AbortMacScan(tHalHandle hHal, tANI_U8 sessionId,
-                                     eCsrAbortReason reason);
+eHalStatus sme_AbortMacScan(tHalHandle hHal, tANI_U8 sessionId,
+                            eCsrAbortReason reason);
 
 /* ---------------------------------------------------------------------------
     \fn sme_GetCfgValidChannels
@@ -3303,17 +3304,6 @@ eHalStatus sme_HandoffRequest(tHalHandle hHal, tCsrHandoffRequest *pHandoffInfo)
   --------------------------------------------------------------------------*/
 VOS_STATUS sme_isSta_p2p_clientConnected(tHalHandle hHal);
 
-/*--------------------------------------------------------------------------
-  \brief hdd_is_any_session_connected() - a wrapper function to check if there
-                                           is any connected session .
-  This is a synchronous call
-  \param hHal - The handle returned by macOpen
-  \return VOS_STATUS - SME passed the request to CSR successfully.
-          Other status means SME is failed to send the request.
-  \sa
-  --------------------------------------------------------------------------*/
-VOS_STATUS sme_is_any_session_connected(tHalHandle hHal);
-
 #ifdef FEATURE_WLAN_LPHB
 /* ---------------------------------------------------------------------------
     \fn sme_LPHBConfigReq
@@ -3515,17 +3505,4 @@ eHalStatus sme_RegisterBtCoexTDLSCallback
 ---------------------------------------------------------------------------*/
 tANI_BOOLEAN smeNeighborRoamIsHandoffInProgress(tHalHandle hHal);
 
-/* --------------------------------------------------------------------------
-
-    \fn sme_IsCoexScoIndicationSet
-    \brief To check if the BTC module in fwr has sent the SCO
-           indication to host or not
-
-    \param hHal - The handle returned by macOpen.
-    \return TRUE - Sco call in progress FALSE- No SCO call in progress
-
-  --------------------------------------------------------------------------*/
-tANI_BOOLEAN sme_IsCoexScoIndicationSet(tHalHandle hHal);
-
-void sme_SetDefDot11Mode(tHalHandle hHal);
 #endif //#if !defined( __SME_API_H )
